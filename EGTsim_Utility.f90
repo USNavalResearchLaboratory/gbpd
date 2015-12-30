@@ -228,7 +228,79 @@ endif ! if (Nsite .gt. 100) then
 return
 end subroutine ! Get_Morph1
 ! ============================================================================!
+subroutine Get_Difference(A,lenA,B,lenB,AoB,lenAoB)
+implicit none
+integer j1,j2,lenA,lenB,A(lenA), B(lenB),lenAoB,AoB(lenA),lenAu,lenBu
+integer, allocatable :: itmp1(:), itmp2(:)
 
+allocate( itmp1(lenA), itmp2(lenB) )
+
+call Get_Unique(A,lenA,itmp1,lenAu)
+call Get_Unique(B,lenB,itmp2,lenBu)
+
+j1 = 1
+j2 = 1
+lenAoB = 0
+do while (j1 .le. lenAu .and. j2 .le. lenBu)
+ if (itmp1(j1) .lt. itmp2(j2)) then
+   lenAoB = lenAoB + 1
+   AoB(lenAoB) = itmp1(j1)
+   j1 = j1 + 1
+ elseif (itmp2(j2) .lt. itmp1(j1)) then
+   j2 = j2+1
+ else
+  j1 = j1+1
+  j2 = j2+1
+ endif ! (itmp1(j1) .lt. itmp2(j2)) 
+enddo ! while (j1 .lt. gclen .and. j2 .lt. 6*blen) 
+
+if (j2 .ge. lenBu) then
+do j2 = j1,lenAu
+ lenAoB = lenAoB+1
+ AoB(lenAoB) = itmp1(j2)
+enddo
+
+endif 
+
+
+
+deallocate(itmp1,itmp2)
+
+return
+end subroutine
+! ============================================================================!
+subroutine Get_Unique(A,lenA,Au,lenAu)
+implicit none
+integer j1,lenA,A(lenA),lenAu,Au(lenA)
+integer, allocatable :: itmp1(:)
+
+allocate( itmp1(lenA) )
+itmp1 = A
+call sort(itmp1,lenA)
+
+lenAu = 0
+j1 = 2
+do while (j1 .le. lenA)
+do while ( itmp1(j1) .eq. itmp1(j1-1) .and. j1 .lt. lenA) 
+ j1 = j1 + 1
+enddo !while
+lenAu = lenAu+1
+Au(lenAu) = itmp1(j1-1)
+j1 = j1 + 1
+enddo ! while
+
+if (lenA .gt. 1) then
+if (itmp1(lenA) .ne. itmp1(lenA-1)) then
+ lenAu = lenAu+1
+ Au(lenAu) = itmp1(lenA)
+endif
+endif
+
+
+deallocate(itmp1)
+
+return
+end subroutine
 ! ============================================================================!
 subroutine Get_XEG1(N1,N2,N3,dx,Nsite,Ngamma,Ntsample,R,XEG,param_mat_CDF, &
            Gammainv,d5bound,irg)
@@ -362,6 +434,142 @@ endif ! if (irg .eq. 0 ) ! read in from file
 return
 end subroutine ! Get_XEG1
 ! ============================================================================!
+subroutine Get_Intersect(A,lenA,B,lenB,AnB,lenAB,lenAnB)
+implicit none
+integer j1,j2,lenA,lenAB,lenB,A(lenA), B(lenB),AnB(lenAB),lenAnB
+integer, allocatable :: itmp1(:), itmp2(:)
+
+allocate( itmp1(lenA), itmp2(lenB) )
+itmp1 = A
+itmp2 = B
+call sort(itmp1,lenA)
+call sort(itmp2,lenB)
+j1 = 1
+j2 = 1
+lenAnB = 0
+do while (j1 .le. lenA .and. j2 .le. lenB)
+ if (itmp1(j1) .lt. itmp2(j2)) then
+   j1 = j1 + 1
+ elseif (itmp1(j1) .gt. itmp2(j2)) then
+   j2 = j2+1
+ else
+  lenAnB = lenAnB + 1
+  AnB(lenAnB) = itmp1(j1)
+  j1 = j1+1
+  j2 = j2+1
+!write(*,*) lenAnB
+ endif ! (itmp1(j1) .lt. itmp2(j2)) 
+enddo ! while (j1 .lt. gclen .and. j2 .lt. 6*blen) 
+
+deallocate(itmp1,itmp2)
+
+return
+end subroutine
+! ============================================================================!
+! THE FOLLOWING ROUTINES ARE TO SORT AN ARRAY AND TAKEN FROM
+! http://www.cs.mtu.edu/~shene/COURSES/cs201/NOTES/chap08/sorting.f90
+
+! --------------------------------------------------------------------
+! SUBROUTINE  Swap():
+!    This subroutine swaps the values of its two formal arguments.
+! --------------------------------------------------------------------
+
+   SUBROUTINE  Swap(a, b)
+      IMPLICIT  NONE
+      INTEGER, INTENT(INOUT) :: a, b
+      INTEGER                :: Temp
+
+      Temp = a
+      a    = b
+      b    = Temp
+   END SUBROUTINE  Swap
+
+! --------------------------------------------------------------------
+! SUBROUTINE  Sort():
+!    This subroutine receives an array x() and sorts it into ascending
+! order.
+! --------------------------------------------------------------------
+
+SUBROUTINE sort(arr,n)
+INTEGER n,M,NSTACK,arr(n)
+PARAMETER (M=7,NSTACK=50)
+! Sorts an array arr(1:n) into ascending numerical order using the Quicksort
+! algorithm. n is input; arr is replaced on output by its sorted rearrangement.
+! Parameters: M is the size of subarrays sorted by straight insertion and 
+! NSTACK is the required auxiliary storage.
+INTEGER i,ir,j,jstack,k,l,istack(NSTACK),a,temp
+jstack=0
+l=1
+ir=n
+1 if(ir-l.lt.M)then ! Insertion sort when subarray small enough.
+do j=l+1,ir
+a=arr(j)
+do i=j-1,l,-1
+if(arr(i).le.a) goto 2
+arr(i+1)=arr(i)
+enddo 
+i=l-1
+2 arr(i+1)=a
+enddo 
+if(jstack.eq.0) return
+ir=istack(jstack) !Pop stack and begin a new round of partitioning.
+l=istack(jstack-1)
+jstack=jstack-2
+else
+k=(l+ir)/2 
+temp=arr(k)
+arr(k)=arr(l+1)
+arr(l+1)=temp
+if(arr(l).gt.arr(ir))then
+temp=arr(l)
+arr(l)=arr(ir)
+arr(ir)=temp
+endif
+if(arr(l+1).gt.arr(ir))then
+temp=arr(l+1)
+arr(l+1)=arr(ir)
+arr(ir)=temp
+endif
+if(arr(l).gt.arr(l+1))then
+temp=arr(l)
+arr(l)=arr(l+1)
+arr(l+1)=temp
+endif
+i=l+1 !Initialize pointers for partitioning.
+j=ir
+a=arr(l+1) !Partitioning element.
+3 continue !Beginning of innermost loop.
+i=i+1 !Scan up to nd element > a.
+if(arr(i).lt.a)goto 3
+4 continue
+j=j-1 !Scan down to nd element < a.
+if(arr(j).gt.a)goto 4
+if(j.lt.i)goto 5 !Pointers crossed. Exit with partitioning complete.
+temp=arr(i) !Exchange elements.
+arr(i)=arr(j)
+arr(j)=temp
+goto 3 !End of innermost loop.
+5 arr(l+1)=arr(j) !Insert partitioning element.
+arr(j)=a
+jstack=jstack+2
+!if(jstack.gt.NSTACK)pause 'NSTACK too small in sort'
+if(ir-i+1.ge.j-l)then
+istack(jstack)=ir
+istack(jstack-1)=i
+ir=j-1
+else
+istack(jstack)=j-1
+istack(jstack-1)=l
+l=i
+endif
+endif
+goto 1
+return
+end subroutine
+
+! END
+! http://www.cs.mtu.edu/~shene/COURSES/cs201/NOTES/chap08/sorting.f90
+! ============================================================================!
 ! ============================================================================!
 SUBROUTINE sort_real(arr,n)
 INTEGER n,M,NSTACK
@@ -444,4 +652,53 @@ end subroutine ! sort_real
 
 ! END 
 ! http://www.cs.mtu.edu/~shene/COURSES/cs201/NOTES/chap08/sorting.f90
+! ============================================================================!
+subroutine Write_Microstructure_VTI(N1,N2,N3,dx,cellid,filname)
+implicit none
+
+character filname*150
+integer j1,cellid(N1*N2*N3),Ntot,N1,N2,N3
+real*8 dx(3)
+
+Ntot = N1*N2*N3
+open(unit=99,file=filname,status='replace')
+
+write(99,1) 
+write(99,2) N1,N2,N3,dx(1),dx(2),dx(3)
+
+write(99,3) N1,N2,N3
+write(99,4) 
+write(99,5) 
+write(99,6) 
+write(99,7) 
+
+do j1 = 1,Ntot
+write(99,'(I3)') cellid(j1)
+enddo
+
+write(99,8) 
+write(99,9) 
+write(99,10) 
+write(99,11) 
+write(99,12) 
+
+close(99)
+
+
+1 format('<VTKFile type="ImageData" version="0.1" byte_order="LittleEndian">')
+2 format('<ImageData WholeExtent="0 ',i3' 0 ',i3,' 0 ',i3,&
+          '" Origin="0 0 0" Spacing="',2(f5.3,1x),f5.3,'">')
+3 format('<Piece Extent="0 ',i3,' 0 ',i3,' 0 ',i3'">')
+4 format('<PointData>')
+5 format('</PointData>')
+6 format('<CellData>')
+7 format('<DataArray type="Float32" Name="Region" format="ascii">')
+8 format('</DataArray>')
+9 format('</CellData>')
+10 format('</Piece>')
+11 format('</ImageData>')
+12 format('</VTKFile>')
+
+return
+end subroutine
 ! ============================================================================!
