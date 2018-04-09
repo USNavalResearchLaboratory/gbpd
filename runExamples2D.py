@@ -47,18 +47,13 @@ zdata = Tessellation2D.cellidData2D()
 fil1='bTi_slice.npy'
 zdata.voxelID=np.load(fil1)
 zdata.dims = np.asarray(zdata.voxelID.shape)
+zdata.spacing=np.array([.665,.665])
 pbounds = np.array([[0,zdata.dims[0]],[0,zdata.dims[1]]])
-
-
 nd = zdata.dims
-dx = np.array([.665,.665])
-
-
+dx = zdata.spacing
 zgbpd = Tessellation2D.GBPD()
 zgbpd.fitParameters(zdata)
 zgbpd.generateMicrostructure(nd,dx)
-
-
 tmp = np.gradient(zdata.voxelID)
 z1 = np.zeros(zdata.dims[0:2])
 z1[np.where(tmp[0]!=0)] = 1
@@ -71,60 +66,53 @@ z2a[np.where(tmp[0]!=0)] = 0.0
 z2a[np.where(tmp[1]!=0)] = 0.0
 z2[:,:,1] = z2a
 z2[:,:,2] = z2a
-
-
 myfig=plt.figure(figsize=(12,10))
-#plt.subplot(121)
 myimg0=plt.imshow(z1,cmap='Greys')#,extent=(2,50,2,50))
 plt.savefig('bTi_slice.png',dpi=300)
-
-
-#plt.subplot(122)
 myimg1=plt.imshow(z2,alpha=.5,cmap='Reds')#,extent=(2,50,2,50))
 plt.tick_params(axis='both',which='both',labelbottom='off',labelleft='off',bottom='off',left='off')
-
 plt.show()
-plt.savefig('GBPDfit_bTi_slice'+str(nSlice)+'.png',dpi=300)
+plt.savefig('GBPDfit_bTi_slice70.png',dpi=300)
 plt.close()
 
 'compute percent voxel mismatch'
-z1 = np.copy(zdata.voxelID[:,:,nSlice[jstar]])
-z2 = np.copy(zgbpd[jstar].voxelID)
+z1 = np.copy(zdata.voxelID)
+z2 = np.copy(zgbpd.voxelID)
 z1 = np.reshape(z1,zdata.dims[0]*zdata.dims[1])
 z2 = np.reshape(z2,zdata.dims[0]*zdata.dims[1])
-b = zgbpd[jstar].dataID[np.where(zgbpd[jstar].gID==1)]
+b = zgbpd.dataID[np.where(zgbpd.gID==1)]
 numMatch= 0.0
-for j in range(0,len(np.where(zgbpd[jstar].gID==1)[0])):  
+for j in range(0,len(np.where(zgbpd.gID==1)[0])):  
     k1 = np.where(z1==b[j])[0]
     k2 = np.where(z2==b[j])[0]
     numMatch = numMatch + len(np.intersect1d(k1,k2))
 percentVoxelMatch =numMatch/zdata.dims[0]/zdata.dims[1]    
     
 
-zgbpd[jstar].computeNeighbors()
-zdata2D.computeNeighbors()
-neighborStats = np.zeros([zdata2D.Ngrain,3]) # col1: if all correct
+zgbpd.computeNeighbors()
+zdata.computeNeighbors()
+neighborStats = np.zeros([zdata.Ngrain,3]) # col1: if all correct
                                              # col2: if only 1 wrong
                                              # col3: difference in # of grains
-bbad = np.where(zgbpd[jstar].gID==0)[0]
-for j in range(0,zdata2D.Ngrain):
-    k1 = np.setdiff1d(zdata2D.neighbors[j],bbad)
-    k2 = np.setdiff1d(zgbpd[jstar].neighbors[j],bbad)
+bbad = np.where(zgbpd.gID==0)[0]
+for j in range(0,zdata.Ngrain):
+    k1 = np.setdiff1d(zdata.neighbors[j],bbad)
+    k2 = np.setdiff1d(zgbpd.neighbors[j],bbad)
     if (len(np.setdiff1d(k1,k2))==0): neighborStats[j,0]=1.0
     if (len(np.setdiff1d(k1,k2))<=1): neighborStats[j,1]=1.0
     neighborStats[j,2] = len(k2)-len(k1)
 
-k1 = neighborStats[np.where(zgbpd[jstar].gID==1)[0],0]
-percentAllNeighbor = np.sum(k1)/len(np.where(zgbpd[jstar].gID==1)[0])
-k1 = neighborStats[np.where(zgbpd[jstar].gID==1)[0],1]
-percentOneNeighbor = np.sum(k1)/len(np.where(zgbpd[jstar].gID==1)[0])
+k1 = neighborStats[np.where(zgbpd.gID==1)[0],0]
+percentAllNeighbor = np.sum(k1)/len(np.where(zgbpd.gID==1)[0])
+k1 = neighborStats[np.where(zgbpd.gID==1)[0],1]
+percentOneNeighbor = np.sum(k1)/len(np.where(zgbpd.gID==1)[0])
 
-k1 = np.where( (neighborStats[:,2]>0) & (zgbpd[jstar].gID==1)      )[0]
+k1 = np.where( (neighborStats[:,2]>0) & (zgbpd.gID==1)      )[0]
 percentNeighborExcess = np.sum(neighborStats[k1,2])/ \
-    len(np.where(zgbpd[jstar].gID==1)[0])
-k1 = np.where( (neighborStats[:,2]<0) & (zgbpd[jstar].gID==1)      )[0]
+    len(np.where(zgbpd.gID==1)[0])
+k1 = np.where( (neighborStats[:,2]<0) & (zgbpd.gID==1)      )[0]
 percentNeighborLess = np.abs(np.sum(neighborStats[k1,2]))/ \
-    len(np.where(zgbpd[jstar].gID==1)[0])
+    len(np.where(zgbpd.gID==1)[0])
 
 print('beta-Ti results:')
 print('Percent voxel match=',percentVoxelMatch)
